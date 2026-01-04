@@ -2,6 +2,7 @@
 #define SEMVERXX_H
 
 #include <cctype>
+#include <cstddef>
 #include <ostream>
 #include <stdexcept>
 #include <string>
@@ -20,9 +21,7 @@ public:
         set_build(build);
     }
 
-    explicit version(const std::string& str) {
-        parse(str);
-    }
+    explicit version(const std::string& str) { parse(str); }
 
     version(const version&) = default;
     version(version&&) noexcept = default;
@@ -122,9 +121,8 @@ public:
     }
 
     std::size_t length() const {
-        return 2 + integral_length(major_) + integral_length(minor_) + integral_length(patch_)
-            + (prerelease_.empty() ? 0 : prerelease_.size() + 1)
-            + (build_.empty() ? 0 : build_.size() + 1);
+        return 2 + integral_length(major_) + integral_length(minor_) + integral_length(patch_) +
+            (prerelease_.empty() ? 0 : prerelease_.size() + 1) + (build_.empty() ? 0 : build_.size() + 1);
     }
 
 private:
@@ -209,8 +207,12 @@ private:
                 case state::build_begin: // [1.1.1+]1 | [1.1.1+aabbcc.]1
                     current_state = state::build;
                     break;
+                case state::major_zero: // [0]1
+                case state::minor_zero: // [1.0]1
+                case state::patch_zero: // [1.1.0]1
+                    throw std::invalid_argument("invalid leading zero");
                 default:
-                    break; // always valid
+                    break;
                 }
             } else if (std::isalpha(c)) {
                 switch (current_state) {
@@ -247,6 +249,7 @@ private:
                 }
             } else if (c == '-') {
                 switch (current_state) {
+                case state::patch_zero: // [1.1.0]-
                 case state::patch: // [1.1.1]-
                     current_state = state::prerelease_begin;
                     prerelease_index = i + 1;
@@ -282,23 +285,18 @@ private:
         switch (current_state) {
         case state::major_begin: // []
             throw std::invalid_argument("missing major version");
-            break;
         case state::major_zero: // [0]
         case state::major: // [1]
         case state::minor_begin: // [1.]
             throw std::invalid_argument("missing minor version and patch version");
-            break;
         case state::minor_zero: // [1.0]
         case state::minor: // [1.1]
         case state::patch_begin: // [1.1.]
             throw std::invalid_argument("missing patch version");
-            break;
         case state::prerelease_begin: // [1.1.1-] | [1.1.1-alpha.]
             throw std::invalid_argument("incomplete pre-release version");
-            break;
         case state::build_begin: // [1.1.1+] | [1.1.1+aabbcc.]
             throw std::invalid_argument("incomplete build metadata");
-            break;
         case state::patch_zero: // [1.1.0]
         case state::patch: // [1.1.1]
         case state::prerelease: // [1.1.1-alpha]
@@ -335,9 +333,107 @@ private:
     std::string build_;
 };
 
-inline std::ostream& operator<<(std::ostream& os, const version& ver) {
-    return os << ver.to_string();
+inline bool operator==(const version& lhs, const version& rhs) {
+    return lhs.major() == rhs.major() && lhs.minor() == rhs.minor() && lhs.patch() == rhs.patch() &&
+        lhs.prerelease() == rhs.prerelease();
 }
+
+inline bool operator!=(const version& lhs, const version& rhs) { return !(lhs == rhs); }
+
+
+inline bool operator<(const version& lhs, const version& rhs) {
+    if (int diff; (diff = lhs.major() - rhs.major()) || (diff = lhs.minor() - rhs.minor()) ||
+        (diff = lhs.patch() - rhs.patch())) {
+        return diff < 0;
+    }
+    const std::string &a = lhs.prerelease(), b = rhs.prerelease();
+    // Compare the pre-release versions
+    if (a.empty() || b.empty()) {
+        return false;
+    }
+    bool numeric_a{true}, numeric_b{true};
+    int identifier_a{}, identifier_b{};
+    int lexical_comparison{};
+    std::size_t i{}, j{};
+    for (; i < a.size() && j < b.size(); ++i, ++j) {
+        auto char_a{a[i]}, char_b{b[j]};
+        if (char_a == '.' || char_b == '.') {
+            if (char_a != '.') {
+                if (numeric_b) {
+                    return false; // Long a > short b
+                }
+                if (numeric_a && std::isdigit(char_a)) {
+                    return true; // Numeric a < non-numeric b
+                }
+                // Compare non-numeric a and non-numeric b
+                return lexical_comparison < 0;
+            }
+            if (char_b != '.') {
+                if (numeric_a) {
+                    return true; // Short a < long b
+                }
+                if (numeric_b && std::isdigit(char_b)) {
+                    return false; // Non-numeric a > numeric b
+                }
+                // Compare non-numeric a and non-numeric b
+                return lexical_comparison <= 0;
+            }
+            if (numeric_a && numeric_b) {
+                if (identifier_a != identifier_b) {
+                    return identifier_a - identifier_b;
+                }
+            } else if (numeric_a) {
+                return true; // Numeric a < non-numeric b
+            } else if (numeric_b) {
+                return false; // Non-numeric a > numeric b
+            } else {
+                if (lexical_comparison != 0) {
+                    return lexical_comparison < 0;
+                }
+            }
+            // Reset identifiers
+            numeric_a = numeric_b = true;
+            identifier_a = identifier_b = 0;
+            lexical_comparison = 0;
+        } else {
+            numeric_a = numeric_a && std::isdigit(char_a);
+            numeric_b = numeric_b && std::isdigit(char_b);
+            if (numeric_a && numeric_b) {
+                identifier_a = identifier_a * 10 + (char_a - '0');
+                identifier_b = identifier_b * 10 + (char_b - '0');
+            } else {
+                // First position differed
+                if (lexical_comparison == 0) {
+                    lexical_comparison = char_a - char_b;
+                }
+                if (!numeric_a && !numeric_b && lexical_comparison != 0) {
+                    return lexical_comparison < 0;
+                }
+            }
+        }
+    }
+    if (i < a.size()) {
+        if (numeric_b) {
+            return false; // Long a > short b
+        }
+        return lexical_comparison < 0;
+    }
+    if (j < b.size()) {
+        if (numeric_a) {
+            return true; // Short a < long b
+        }
+        return lexical_comparison <= 0;
+    }
+    return false;
 }
+
+inline bool operator>(const version& lhs, const version& rhs) { return rhs < lhs; }
+
+inline bool operator<=(const version& lhs, const version& rhs) { return !(rhs < lhs); }
+
+inline bool operator>=(const version& lhs, const version& rhs) { return !(lhs < rhs); }
+
+inline std::ostream& operator<<(std::ostream& os, const version& ver) { return os << ver.to_string(); }
+} // namespace semverxx
 
 #endif // SEMVERXX_H
