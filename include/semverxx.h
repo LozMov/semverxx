@@ -346,10 +346,13 @@ inline bool operator<(const version& lhs, const version& rhs) {
         (diff = lhs.patch() - rhs.patch())) {
         return diff < 0;
     }
-    const std::string &a = lhs.prerelease(), b = rhs.prerelease();
     // Compare the pre-release versions
-    if (a.empty() || b.empty()) {
+    const std::string &a = lhs.prerelease(), &b = rhs.prerelease();
+    if (a.empty()) {
         return false;
+    }
+    if (b.empty()) {
+        return true;
     }
     bool numeric_a{true}, numeric_b{true};
     int identifier_a{}, identifier_b{};
