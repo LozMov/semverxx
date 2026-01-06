@@ -39,6 +39,8 @@ public:
 
     const std::string& build() const { return build_; }
 
+    version core() const { return {major_, minor_, patch_}; }
+
     void set_major(int major) {
         if (major < 0) {
             throw std::invalid_argument("invalid major version");
