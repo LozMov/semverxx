@@ -12,8 +12,8 @@ class version {
 public:
     version() = default;
 
-    explicit version(int major, int minor = 0, int patch = 0, const std::string& prerelease = "",
-                     const std::string& build = "") {
+    version(int major, int minor, int patch, const std::string& prerelease = "",
+            const std::string& build = "") {
         set_major(major);
         set_minor(minor);
         set_patch(patch);
