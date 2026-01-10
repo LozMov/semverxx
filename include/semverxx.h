@@ -6,6 +6,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <utility>
 
 namespace semverxx {
 class version {
@@ -440,5 +441,39 @@ inline bool operator>=(const version& lhs, const version& rhs) { return !(lhs < 
 
 inline std::ostream& operator<<(std::ostream& os, const version& ver) { return os << ver.to_string(); }
 } // namespace semverxx
+
+// Implement the tuple protocol to provide structured binding support in C++17
+#if __cpp_structured_bindings >= 20160L
+namespace semverxx {
+template<std::size_t I>
+decltype(auto) get(const version& v) {
+    static_assert(I <= 4, "Invalid index");
+    if constexpr (I == 0) {
+        return v.major();
+    } else if constexpr (I == 1) {
+        return v.minor();
+    } else if constexpr (I == 2) {
+        return v.patch();
+    } else if constexpr (I == 3) {
+        return v.prerelease();
+    } else if constexpr (I == 4) {
+        return v.build();
+    }
+}
+}
+
+#include <type_traits>
+
+namespace std {
+template<>
+struct tuple_size<semverxx::version> : integral_constant<size_t, 5> {
+};
+
+template<size_t I>
+struct tuple_element<I, semverxx::version> {
+    using type = decltype(get<I>(declval<semverxx::version>()));
+};
+}
+#endif
 
 #endif // SEMVERXX_H
