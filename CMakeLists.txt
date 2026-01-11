@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.23)
-project(semverxx)
+project(semverxx LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+option(SEMVERXX_BUILD_CLI "Build the version parser CLI program" OFF)
 
 add_library(semverxx INTERFACE)
 target_sources(semverxx PUBLIC
@@ -10,5 +10,9 @@ target_sources(semverxx PUBLIC
         FILES include/semverxx.h
 )
 
-add_executable(demo example/demo.cpp)
-target_link_libraries(demo semverxx)
+if (PROJECT_IS_TOP_LEVEL)
+    include(CTest)
+    if (BUILD_TESTING)
+        add_subdirectory(test)
+    endif ()
+endif ()
