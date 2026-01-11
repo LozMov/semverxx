@@ -440,6 +440,13 @@ inline bool operator<=(const version& lhs, const version& rhs) { return !(rhs < 
 inline bool operator>=(const version& lhs, const version& rhs) { return !(lhs < rhs); }
 
 inline std::ostream& operator<<(std::ostream& os, const version& ver) { return os << ver.to_string(); }
+
+// User-defined literals
+namespace literals {
+    inline version operator""_v(const char* str, std::size_t) {
+        return version(str);
+    }
+}
 } // namespace semverxx
 
 // Implement the tuple protocol to provide structured binding support in C++17
