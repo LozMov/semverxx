@@ -114,6 +114,12 @@ public:
 
     void clear_build() noexcept { build_.clear(); }
 
+    void clear() noexcept {
+        major_ = minor_ = patch_ = 0;
+        clear_prerelease();
+        clear_build();
+    }
+
     std::string to_string() const {
         std::string str = std::to_string(major_) + "." + std::to_string(minor_) + "." + std::to_string(patch_);
         if (!prerelease_.empty()) {

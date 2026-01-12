@@ -191,6 +191,10 @@ TEST(Setters, SettingVersions) {
 
     v.clear_build();
     EXPECT_EQ(v.to_string(), "4.5.6");
+
+    version v2("1.2.3-alpha+build");
+    v2.clear();
+    EXPECT_EQ(v2.to_string(), "0.0.0");
 }
 
 TEST(Misc, ToString) {
