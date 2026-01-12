@@ -32,13 +32,15 @@ public:
 
     int major() const { return major_; }
 
-    int minor() const { return minor_; }
+    int major() const noexcept { return major_; }
 
-    int patch() const { return patch_; }
+    int minor() const noexcept { return minor_; }
 
-    const std::string& prerelease() const { return prerelease_; }
+    int patch() const noexcept { return patch_; }
 
-    const std::string& build() const { return build_; }
+    const std::string& prerelease() const noexcept { return prerelease_; }
+
+    const std::string& build() const noexcept { return build_; }
 
     version core() const { return {major_, minor_, patch_}; }
 
@@ -79,7 +81,7 @@ public:
         }
     }
 
-    void bump_major() {
+    void bump_major() noexcept {
         ++major_;
         minor_ = 0;
         patch_ = 0;
@@ -87,14 +89,14 @@ public:
         clear_build();
     }
 
-    void bump_minor() {
+    void bump_minor() noexcept {
         ++minor_;
         patch_ = 0;
         clear_prerelease();
         clear_build();
     }
 
-    void bump_patch() {
+    void bump_patch() noexcept {
         ++patch_;
         clear_prerelease();
         clear_build();
@@ -108,9 +110,9 @@ public:
         set_build(build_.empty() ? identifier : build_ + "." + identifier);
     }
 
-    void clear_prerelease() { prerelease_.clear(); }
+    void clear_prerelease() noexcept { prerelease_.clear(); }
 
-    void clear_build() { build_.clear(); }
+    void clear_build() noexcept { build_.clear(); }
 
     std::string to_string() const {
         std::string str = std::to_string(major_) + "." + std::to_string(minor_) + "." + std::to_string(patch_);
@@ -123,7 +125,7 @@ public:
         return str;
     }
 
-    std::size_t length() const {
+    std::size_t length() const noexcept {
         return 2 + integral_length(major_) + integral_length(minor_) + integral_length(patch_) +
             (prerelease_.empty() ? 0 : prerelease_.size() + 1) + (build_.empty() ? 0 : build_.size() + 1);
     }
@@ -320,7 +322,7 @@ private:
         }
     }
 
-    static std::size_t integral_length(int n) {
+    static std::size_t integral_length(int n) noexcept {
         std::size_t digits{};
         do {
             ++digits;
@@ -336,12 +338,12 @@ private:
     std::string build_;
 };
 
-inline bool operator==(const version& lhs, const version& rhs) {
+inline bool operator==(const version& lhs, const version& rhs) noexcept {
     return lhs.major() == rhs.major() && lhs.minor() == rhs.minor() && lhs.patch() == rhs.patch() &&
         lhs.prerelease() == rhs.prerelease();
 }
 
-inline bool operator!=(const version& lhs, const version& rhs) { return !(lhs == rhs); }
+inline bool operator!=(const version& lhs, const version& rhs) noexcept { return !(lhs == rhs); }
 
 
 inline bool operator<(const version& lhs, const version& rhs) {
@@ -453,7 +455,7 @@ namespace literals {
 #if __cpp_structured_bindings >= 20160L
 namespace semverxx {
 template<std::size_t I>
-decltype(auto) get(const version& v) {
+decltype(auto) get(const version& v) noexcept {
     static_assert(I <= 4, "Invalid index");
     if constexpr (I == 0) {
         return v.major();
