@@ -161,7 +161,8 @@ private:
         state current_state{initial_state};
 
         for (std::size_t i = 0; i < str.size(); ++i) {
-            if (const auto c = str[i]; c == '0') {
+            const auto c = str[i];
+            if (c == '0') {
                 switch (current_state) {
                 case state::major_begin: // []0
                     current_state = state::major_zero;
@@ -351,9 +352,14 @@ inline bool operator!=(const version& lhs, const version& rhs) noexcept { return
 
 
 inline bool operator<(const version& lhs, const version& rhs) {
-    if (int diff; (diff = lhs.major() - rhs.major()) || (diff = lhs.minor() - rhs.minor()) ||
-        (diff = lhs.patch() - rhs.patch())) {
-        return diff < 0;
+    if (lhs.major() != rhs.major()) {
+        return lhs.major() < rhs.major();
+    }
+    if (lhs.minor() != rhs.minor()) {
+        return lhs.minor() < rhs.minor();
+    }
+    if (lhs.patch() != rhs.patch()) {
+        return lhs.patch() < rhs.patch();
     }
     // Compare the pre-release versions
     const std::string &a = lhs.prerelease(), &b = rhs.prerelease();
