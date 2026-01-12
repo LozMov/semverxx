@@ -11,8 +11,6 @@ if (NOT GTest_FOUND)
     # Windows: Use shared (DLL) run-time lib even when Google Test is built as static lib
     set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
     FetchContent_MakeAvailable(googletest)
-    add_library(GTest::gtest ALIAS gtest)
-    add_library(GTest::gtest_main ALIAS gtest_main)
 endif ()
 
 add_executable(semverxx_test semverxx_test.cpp)
