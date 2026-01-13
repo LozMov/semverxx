@@ -83,8 +83,10 @@ TEST(Parsing, ValidCornerCases) {
     EXPECT_EQ(v0.patch(), 0);
 
     // Large components (assuming int range)
-    version v1("999.999.999");
+    version v1("999.999.1000");
     EXPECT_EQ(v1.major(), 999);
+    EXPECT_EQ(v1.minor(), 999);
+    EXPECT_EQ(v1.patch(), 1000);
 
     // Uncommon pre-release/build identifiers
     version v2("1.0.0--");

@@ -180,8 +180,14 @@ private:
                     current_state = state::build;
                     break;
                 case state::major: // [1]0
+                    major *= 10;
+                    break;
                 case state::minor: // [1.1]0
+                    minor *= 10;
+                    break;
                 case state::patch: // [1.1.1]0
+                    patch *= 10;
+                    break;
                 case state::prerelease: // [1.1.1-alpha]0
                 case state::build: // [1.1.1+aabbcc]0
                     break;
