@@ -468,7 +468,7 @@ namespace literals {
 } // namespace semverxx
 
 // Implement the tuple protocol to provide structured binding support in C++17
-#if __cpp_structured_bindings >= 20160L
+#if __cpp_structured_bindings >= 201606L
 namespace semverxx {
 template<std::size_t I>
 decltype(auto) get(const version& v) noexcept {
