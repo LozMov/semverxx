@@ -11,7 +11,8 @@
 namespace semverxx {
 class version {
 public:
-    version() = default;
+    version() : major_{}, minor_{}, patch_{} {
+    }
 
     version(int major, int minor, int patch, const std::string& prerelease = "",
             const std::string& build = "") {
@@ -22,7 +23,30 @@ public:
         set_build(build);
     }
 
-    explicit version(const std::string& str) { parse(str); }
+    explicit version(const std::string& str) {
+        switch (parse(str, 0, str.size())) {
+        case state::success:
+            break;
+        case state::major_begin: // []
+        case state::major_zero: // [0]
+        case state::major: // [1]
+            throw std::invalid_argument("invalid major version");
+        case state::minor_begin: // [1.]
+        case state::minor_zero: // [1.0]
+        case state::minor: // [1.1]
+            throw std::invalid_argument("invalid minor version");
+        case state::patch_begin: // [1.1.]
+        case state::patch_zero: // [1.1.0]
+        case state::patch: // [1.1.1]
+            throw std::invalid_argument("invalid patch version");
+        case state::prerelease_begin: // [1.1.1-] | [1.1.1-alpha.]
+        case state::prerelease:
+            throw std::invalid_argument("invalid pre-release version");
+        case state::build_begin: // [1.1.1+] | [1.1.1+aabbcc.]
+        case state::build: // [1.1.1+aabbcc]
+            throw std::invalid_argument("invalid build metadata");
+        }
+    }
 
     version(const version&) = default;
     version(version&&) noexcept = default;
@@ -64,19 +88,17 @@ public:
     }
 
     void set_prerelease(const std::string& prerelease) {
-        if (prerelease.empty()) {
-            clear_prerelease();
-        } else {
-            parse(prerelease, state::prerelease_begin);
+        if (!valid_identifiers(prerelease)) {
+            throw std::invalid_argument("invalid pre-release version");
         }
+        prerelease_ = prerelease;
     }
 
     void set_build(const std::string& build) {
-        if (build.empty()) {
-            clear_build();
-        } else {
-            parse(build, state::build_begin);
+        if (!valid_identifiers(build)) {
+            throw std::invalid_argument("invalid build metadata");
         }
+        build_ = build;
     }
 
     void bump_major() noexcept {
@@ -134,6 +156,20 @@ public:
             (prerelease_.empty() ? 0 : prerelease_.size() + 1) + (build_.empty() ? 0 : build_.size() + 1);
     }
 
+    static version coerce(const std::string& str) {
+        auto last_index = str.find_last_not_of("\t\n\v\f\r ");
+        if (last_index == std::string::npos) {
+            return {};
+        }
+        auto first_index = str.find_first_of("0123456789");
+        if (first_index == std::string::npos) {
+            return {};
+        }
+        version ver;
+        ver.parse(str, first_index, last_index + 1);
+        return ver;
+    }
+
 private:
     // States of the finite state machine
     enum class state {
@@ -149,18 +185,20 @@ private:
         prerelease_begin,
         prerelease,
         build_begin,
-        build
+        build,
+        success
     };
 
-    void parse(const std::string& str, state initial_state = state::major_begin) {
-        int major{};
-        int minor{};
-        int patch{};
+    // Consume all valid characters in the string
+    state parse(const std::string& str, std::size_t i, std::size_t end, state initial_state = state::major_begin) {
+        if (initial_state == state::major_begin) {
+            major_ = minor_ = patch_ = 0; // Initialize a new version
+        }
         std::size_t prerelease_index{initial_state == state::prerelease_begin ? 0 : std::string::npos};
         std::size_t build_index{initial_state == state::build_begin ? 0 : std::string::npos};
-        state current_state{initial_state};
+        auto current_state = initial_state;
 
-        for (std::size_t i = 0; i < str.size(); ++i) {
+        for (; i < end; ++i) {
             const auto c = str[i];
             if (c == '0') {
                 switch (current_state) {
@@ -180,42 +218,42 @@ private:
                     current_state = state::build;
                     break;
                 case state::major: // [1]0
-                    major *= 10;
+                    major_ *= 10;
                     break;
                 case state::minor: // [1.1]0
-                    minor *= 10;
+                    minor_ *= 10;
                     break;
                 case state::patch: // [1.1.1]0
-                    patch *= 10;
+                    patch_ *= 10;
                     break;
                 case state::prerelease: // [1.1.1-alpha]0
                 case state::build: // [1.1.1+aabbcc]0
                     break;
                 default:
-                    throw std::invalid_argument("unexpected zero digit");
+                    return current_state;
                 }
             } else if (std::isdigit(c)) {
                 switch (current_state) {
                 case state::major_begin: // []1
                     current_state = state::major;
-                    major = c - '0';
+                    major_ = c - '0';
                     break;
                 case state::major: // [1]1
-                    major = major * 10 + (c - '0');
+                    major_ = major_ * 10 + (c - '0');
                     break;
                 case state::minor_begin: // [1.]1
                     current_state = state::minor;
-                    minor = c - '0';
+                    minor_ = c - '0';
                     break;
                 case state::minor: // [1.1]1
-                    minor = minor * 10 + (c - '0');
+                    minor_ = minor_ * 10 + (c - '0');
                     break;
                 case state::patch_begin: // [1.1.]1
                     current_state = state::patch;
-                    patch = c - '0';
+                    patch_ = c - '0';
                     break;
                 case state::patch: // [1.1.1]1
-                    patch = patch * 10 + (c - '0');
+                    patch_ = patch_ * 10 + (c - '0');
                     break;
                 case state::prerelease_begin: // [1.1.1-]1 | [1.1.1-alpha.]1
                     current_state = state::prerelease;
@@ -226,7 +264,7 @@ private:
                 case state::major_zero: // [0]1
                 case state::minor_zero: // [1.0]1
                 case state::patch_zero: // [1.1.0]1
-                    throw std::invalid_argument("invalid leading zero");
+                    return current_state;
                 default:
                     break;
                 }
@@ -242,7 +280,7 @@ private:
                 case state::build: // [1.1.1+aabbcc]a
                     break;
                 default:
-                    throw std::invalid_argument("unexpected alphabetic character");
+                    return current_state;
                 }
             } else if (c == '.') {
                 switch (current_state) {
@@ -261,7 +299,7 @@ private:
                     current_state = state::build_begin;
                     break;
                 default:
-                    throw std::invalid_argument("unexpected dot");
+                    return current_state;
                 }
             } else if (c == '-') {
                 switch (current_state) {
@@ -280,57 +318,63 @@ private:
                 case state::build: // [1.1.1-alpha+aabbcc]-
                     break;
                 default:
-                    throw std::invalid_argument("unexpected hyphen");
+                    return current_state;
                 }
             } else if (c == '+') {
                 switch (current_state) {
                 case state::patch_zero: // [1.1.0]+
                 case state::patch: // [1.1.1]+
                 case state::prerelease: // [1.1.1-alpha]+
+                    if (prerelease_index != std::string::npos) {
+                        prerelease_ = str.substr(prerelease_index, i - prerelease_index);
+                    }
                     current_state = state::build_begin;
                     build_index = i + 1;
                     break;
                 default:
-                    throw std::invalid_argument("unexpected plus");
+                    return current_state;
                 }
             } else {
-                throw std::invalid_argument("invalid character");
+                return current_state;
             }
         }
 
         switch (current_state) {
-        case state::major_begin: // []
-            throw std::invalid_argument("missing major version");
-        case state::major_zero: // [0]
-        case state::major: // [1]
-        case state::minor_begin: // [1.]
-            throw std::invalid_argument("missing minor version and patch version");
-        case state::minor_zero: // [1.0]
-        case state::minor: // [1.1]
-        case state::patch_begin: // [1.1.]
-            throw std::invalid_argument("missing patch version");
-        case state::prerelease_begin: // [1.1.1-] | [1.1.1-alpha.]
-            throw std::invalid_argument("incomplete pre-release version");
-        case state::build_begin: // [1.1.1+] | [1.1.1+aabbcc.]
-            throw std::invalid_argument("incomplete build metadata");
         case state::patch_zero: // [1.1.0]
         case state::patch: // [1.1.1]
+            return state::success;
         case state::prerelease: // [1.1.1-alpha]
+            prerelease_ = str.substr(prerelease_index, std::string::npos);
+            return state::success;
         case state::build: // [1.1.1+aabbcc]
-            break; // valid
-        }
-        if (initial_state == state::major_begin) {
-            major_ = major;
-            minor_ = minor;
-            patch_ = patch;
-        }
-        if (prerelease_index != std::string::npos) {
-            auto prerelease_length{build_index == std::string::npos ? build_index : build_index - prerelease_index - 1};
-            prerelease_ = str.substr(prerelease_index, prerelease_length);
-        }
-        if (build_index != std::string::npos) {
             build_ = str.substr(build_index);
+            return state::success;
+        default:
+            return current_state;
         }
+    }
+
+    static bool valid_identifiers(const std::string& str) {
+        if (str.empty()) {
+            return true;
+        }
+        if (str.front() == '.' || str.back() == '.') {
+            return false;
+        }
+        bool prev_dot{};
+        for (auto c : str) {
+            if (c == '.') {
+                if (prev_dot) {
+                    return false; // Empty identifier
+                }
+                prev_dot = true;
+            } else if (!std::isalnum(c) && c != '-') {
+                return false; // Invalid character
+            } else {
+                prev_dot = false;
+            }
+        }
+        return true;
     }
 
     static std::size_t integral_length(int n) noexcept {
@@ -342,9 +386,9 @@ private:
         return digits;
     }
 
-    int major_{};
-    int minor_{};
-    int patch_{};
+    int major_;
+    int minor_;
+    int patch_;
     std::string prerelease_;
     std::string build_;
 };
@@ -496,7 +540,7 @@ struct tuple_size<semverxx::version> : integral_constant<size_t, 5> {
 
 template<size_t I>
 struct tuple_element<I, semverxx::version> {
-    using type = decltype(get<I>(declval<semverxx::version>()));
+    using type = decltype(get < I > (declval<semverxx::version>()));
 };
 }
 #endif

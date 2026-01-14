@@ -118,6 +118,22 @@ TEST(Parsing, InvalidVersions) {
     EXPECT_THROW(version(".1.2.3"), std::invalid_argument); // Unexpected dot
 }
 
+TEST(Coercion, PartiallyValidVersions) {
+    EXPECT_EQ(version::coerce(""), version("0.0.0"));
+    EXPECT_EQ(version::coerce(" "), version("0.0.0"));
+    EXPECT_EQ(version::coerce("abcd"), version("0.0.0"));
+    EXPECT_EQ(version::coerce("  1"), version("1.0.0"));
+    EXPECT_EQ(version::coerce("1.02"), version("1.0.0"));
+    EXPECT_EQ(version::coerce("1.2"), version("1.2.0"));
+    EXPECT_EQ(version::coerce("1.2.3.4.5"), version("1.2.3"));
+    EXPECT_EQ(version::coerce("1.2.3-"), version("1.2.3"));
+    EXPECT_EQ(version::coerce("1.2.3-alpha."), version("1.2.3"));
+    EXPECT_EQ(version::coerce("1.2.3-alpha+"), version("1.2.3-alpha"));
+    EXPECT_EQ(version::coerce("1.2.3-alpha+1"), version("1.2.3-alpha+1"));
+    EXPECT_EQ(version::coerce("  1.2.3-alpha+1"), version("1.2.3-alpha+1"));
+    EXPECT_EQ(version::coerce("ver1.2.3-alpha+1 "), version("1.2.3-alpha"));
+}
+
 TEST(Comparison, Core) {
     EXPECT_LT(version("1.0.0"), version("2.0.0"));
     EXPECT_LT(version("2.0.0"), version("2.1.0"));
@@ -165,7 +181,7 @@ TEST(Setters, BumpingVersions) {
     EXPECT_EQ(v.to_string(), "2.0.0");
 }
 
-TEST(Setters, SettingVersions) {
+TEST(Setters, SettingValidVersions) {
     version v("1.2.3-alpha+build");
     // set_* methods should keep prerelease/build
     v.set_major(4);
@@ -197,6 +213,16 @@ TEST(Setters, SettingVersions) {
     version v2("1.2.3-alpha+build");
     v2.clear();
     EXPECT_EQ(v2.to_string(), "0.0.0");
+}
+
+TEST(Setters, SettingInvalidVersions) {
+    version v("1.2.3-alpha+build");
+    EXPECT_THROW(v.set_major(-1), std::invalid_argument);
+    EXPECT_THROW(v.set_minor(-1), std::invalid_argument);
+    EXPECT_THROW(v.set_patch(-1), std::invalid_argument);
+    EXPECT_THROW(v.set_prerelease(".a"), std::invalid_argument);
+    EXPECT_THROW(v.set_build("+b"), std::invalid_argument);
+    EXPECT_EQ(v, version("1.2.3-alpha+build"));
 }
 
 TEST(Misc, ToString) {
