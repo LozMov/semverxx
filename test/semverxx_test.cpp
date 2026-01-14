@@ -197,13 +197,32 @@ TEST(Setters, SettingValidVersions) {
 
     v.set_prerelease("beta");
     EXPECT_EQ(v.to_string(), "4.5.6-beta+build");
+
     v.set_build("new-build");
     EXPECT_EQ(v.to_string(), "4.5.6-beta+new-build");
 
+    v.set_prerelease("");
+    EXPECT_EQ(v.to_string(), "4.5.6+new-build");
+
+    v.set_build("");
+    EXPECT_EQ(v.to_string(), "4.5.6");
+
+    v.append_prerelease("beta");
+    EXPECT_EQ(v.to_string(), "4.5.6-beta");
+
     v.append_prerelease("2");
+    EXPECT_EQ(v.to_string(), "4.5.6-beta.2");
+
+    v.append_prerelease("");
+    EXPECT_EQ(v.to_string(), "4.5.6-beta.2");
+
+    v.append_build("new-build");
     EXPECT_EQ(v.to_string(), "4.5.6-beta.2+new-build");
 
     v.append_build("a");
+    EXPECT_EQ(v.to_string(), "4.5.6-beta.2+new-build.a");
+
+    v.append_build("");
     EXPECT_EQ(v.to_string(), "4.5.6-beta.2+new-build.a");
 
     v.clear_prerelease();
@@ -224,6 +243,8 @@ TEST(Setters, SettingInvalidVersions) {
     EXPECT_THROW(v.set_patch(-1), std::invalid_argument);
     EXPECT_THROW(v.set_prerelease(".a"), std::invalid_argument);
     EXPECT_THROW(v.set_build("+b"), std::invalid_argument);
+    EXPECT_THROW(v.append_prerelease("a."), std::invalid_argument);
+    EXPECT_THROW(v.append_build("a.b."), std::invalid_argument);
     EXPECT_EQ(v, version("1.2.3-alpha+build"));
 }
 

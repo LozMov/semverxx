@@ -117,10 +117,16 @@ public:
     }
 
     void append_prerelease(const std::string& identifier) {
+        if (identifier.empty()) {
+            return;
+        }
         set_prerelease(prerelease_.empty() ? identifier : prerelease_ + "." + identifier);
     }
 
     void append_build(const std::string& identifier) {
+        if (identifier.empty()) {
+            return;
+        }
         set_build(build_.empty() ? identifier : build_ + "." + identifier);
     }
 
