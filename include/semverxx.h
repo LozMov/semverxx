@@ -190,13 +190,11 @@ private:
     };
 
     // Consume all valid characters in the string
-    state parse(const std::string& str, std::size_t i, std::size_t end, state initial_state = state::major_begin) {
-        if (initial_state == state::major_begin) {
-            major_ = minor_ = patch_ = 0; // Initialize a new version
-        }
-        std::size_t prerelease_index{initial_state == state::prerelease_begin ? 0 : std::string::npos};
-        std::size_t build_index{initial_state == state::build_begin ? 0 : std::string::npos};
-        auto current_state = initial_state;
+    state parse(const std::string& str, std::size_t i, std::size_t end) {
+        major_ = minor_ = patch_ = 0; // Initialize a new version
+        auto prerelease_index = std::string::npos;
+        auto build_index = std::string::npos;
+        auto current_state = state::major_begin;
 
         for (; i < end; ++i) {
             const auto c = str[i];
