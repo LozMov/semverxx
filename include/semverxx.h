@@ -48,12 +48,6 @@ public:
         }
     }
 
-    version(const version&) = default;
-    version(version&&) noexcept = default;
-
-    version& operator=(const version&) = default;
-    version& operator=(version&&) noexcept = default;
-
     int major() const noexcept { return major_; }
 
     int minor() const noexcept { return minor_; }

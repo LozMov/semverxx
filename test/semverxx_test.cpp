@@ -15,6 +15,8 @@ TEST(Initialization, ValidVersions) {
         version v("1.2.3-alpha+001");
         version v_copy = v;
         EXPECT_EQ(v, v_copy);
+        version v_move = std::move(v_copy);
+        EXPECT_EQ(v_move, v);
     }
     {
         // Direct-list-initialization
