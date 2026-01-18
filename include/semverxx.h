@@ -157,11 +157,11 @@ public:
     }
 
     static version coerce(const std::string& str) {
-        auto last_index = str.find_last_not_of("\t\n\v\f\r ");
+        const auto last_index = str.find_last_not_of("\t\n\v\f\r ");
         if (last_index == std::string::npos) {
             return {};
         }
-        auto first_index = str.find_first_of("0123456789");
+        const auto first_index = str.find_first_of("0123456789");
         if (first_index == std::string::npos) {
             return {};
         }
@@ -360,7 +360,7 @@ private:
             return false;
         }
         bool prev_dot{};
-        for (auto c : str) {
+        for (const auto c : str) {
             if (c == '.') {
                 if (prev_dot) {
                     return false; // Empty identifier
@@ -422,7 +422,7 @@ inline bool operator<(const version& lhs, const version& rhs) {
     int lexical_comparison{};
     std::size_t i{}, j{};
     for (; i < a.size() && j < b.size(); ++i, ++j) {
-        auto char_a{a[i]}, char_b{b[j]};
+        const auto char_a{a[i]}, char_b{b[j]};
         if (char_a == '.' || char_b == '.') {
             if (char_a != '.') {
                 if (numeric_b) {
