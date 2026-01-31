@@ -7,7 +7,7 @@ add_library(semverxx INTERFACE)
 target_sources(semverxx PUBLIC
         FILE_SET HEADERS
         BASE_DIRS include
-        FILES include/semverxx.h
+        FILES include/semverxx.h include/range.h
 )
 
 if (PROJECT_IS_TOP_LEVEL)
