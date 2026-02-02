@@ -6,6 +6,7 @@
 #include <ostream>
 #include <stdexcept>
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace semverxx {
@@ -14,8 +15,8 @@ public:
     version() : major_{}, minor_{}, patch_{} {
     }
 
-    version(int major, int minor, int patch, const std::string& prerelease = "",
-            const std::string& build = "") {
+    version(int major, int minor, int patch, std::string_view prerelease = "",
+            std::string_view build = "") {
         set_major(major);
         set_minor(minor);
         set_patch(patch);
@@ -23,8 +24,8 @@ public:
         set_build(build);
     }
 
-    explicit version(const std::string& str) {
-        switch (parse(str, 0, str.size())) {
+    explicit version(std::string_view str) {
+        switch (parse(str)) {
         case state::success:
             break;
         case state::major_begin: // []
@@ -81,14 +82,14 @@ public:
         patch_ = patch;
     }
 
-    void set_prerelease(const std::string& prerelease) {
+    void set_prerelease(std::string_view prerelease) {
         if (!valid_identifiers(prerelease)) {
             throw std::invalid_argument("invalid pre-release version");
         }
         prerelease_ = prerelease;
     }
 
-    void set_build(const std::string& build) {
+    void set_build(std::string_view build) {
         if (!valid_identifiers(build)) {
             throw std::invalid_argument("invalid build metadata");
         }
@@ -116,18 +117,30 @@ public:
         clear_build();
     }
 
-    void append_prerelease(const std::string& identifier) {
+    void append_prerelease(std::string_view identifier) {
         if (identifier.empty()) {
             return;
         }
-        set_prerelease(prerelease_.empty() ? identifier : prerelease_ + "." + identifier);
+        if (prerelease_.empty()) {
+            set_prerelease(identifier);
+        } else {
+            auto new_prerelease = prerelease_ + ".";
+            new_prerelease += identifier;
+            set_prerelease(new_prerelease);
+        }
     }
 
-    void append_build(const std::string& identifier) {
+    void append_build(std::string_view identifier) {
         if (identifier.empty()) {
             return;
         }
-        set_build(build_.empty() ? identifier : build_ + "." + identifier);
+        if (build_.empty()) {
+            set_build(identifier);
+        } else {
+            auto new_build = build_ + ".";
+            new_build += identifier;
+            set_build(new_build);
+        }
     }
 
     void clear_prerelease() noexcept { prerelease_.clear(); }
@@ -156,7 +169,7 @@ public:
             (prerelease_.empty() ? 0 : prerelease_.size() + 1) + (build_.empty() ? 0 : build_.size() + 1);
     }
 
-    static version coerce(const std::string& str) {
+    static version coerce(std::string_view str) {
         const auto last_index = str.find_last_not_of("\t\n\v\f\r ");
         if (last_index == std::string::npos) {
             return {};
@@ -166,7 +179,7 @@ public:
             return {};
         }
         version ver;
-        ver.parse(str, first_index, last_index + 1);
+        ver.parse(str.substr(first_index, last_index + 1));
         return ver;
     }
 
@@ -190,13 +203,13 @@ private:
     };
 
     // Consume all valid characters in the string
-    state parse(const std::string& str, std::size_t i, std::size_t end) {
+    state parse(std::string_view str) {
         major_ = minor_ = patch_ = 0; // Initialize a new version
         auto prerelease_index = std::string::npos;
         auto build_index = std::string::npos;
         auto current_state = state::major_begin;
 
-        for (; i < end; ++i) {
+        for (std::size_t i{}; i < str.size(); ++i) {
             const auto c = str[i];
             if (c == '0') {
                 switch (current_state) {
@@ -352,7 +365,7 @@ private:
         }
     }
 
-    static bool valid_identifiers(const std::string& str) {
+    static bool valid_identifiers(std::string_view str) {
         if (str.empty()) {
             return true;
         }
@@ -538,7 +551,7 @@ struct tuple_size<semverxx::version> : integral_constant<size_t, 5> {
 
 template<size_t I>
 struct tuple_element<I, semverxx::version> {
-    using type = decltype(get < I > (declval<semverxx::version>()));
+    using type = decltype(get<I>(declval<semverxx::version>()));
 };
 }
 #endif
