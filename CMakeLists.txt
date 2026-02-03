@@ -10,6 +10,10 @@ target_sources(semverxx PUBLIC
         FILES include/semverxx.h include/range.h
 )
 
+if (SEMVERXX_BUILD_CLI)
+    add_subdirectory(cli)
+endif ()
+
 if (PROJECT_IS_TOP_LEVEL)
     include(CTest)
     if (BUILD_TESTING)
