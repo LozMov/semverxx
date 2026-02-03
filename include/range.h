@@ -29,7 +29,7 @@ public:
     comparator(op o, const version& v) : operator_(o), version_(v) {
     }
 
-    bool satisfies(const version& v) const {
+    bool operator()(const version& v) const {
         switch (operator_) {
         case op::eq:
             return v == version_;
@@ -101,14 +101,14 @@ public:
         parse(str);
     }
 
-    bool satisfies(const version& v) const {
+    bool contains(const version& v) const {
         if (sets_.empty()) {
             return true;
         }
         for (const auto& set : sets_) {
             bool all_satisfied = true;
             for (const auto& comp : set) {
-                if (!comp.satisfies(v)) {
+                if (!comp(v)) {
                     all_satisfied = false;
                     break;
                 }
