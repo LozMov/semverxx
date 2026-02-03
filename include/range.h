@@ -92,38 +92,6 @@ private:
     version version_;
 };
 
-// A comparator set is a collection of comparators (AND logic)
-class comparator_set {
-public:
-    comparator_set() = default;
-
-    explicit comparator_set(const std::vector<comparator>& comps) : comparators_(comps) {
-    }
-
-    void add(const comparator& comp) {
-        comparators_.push_back(comp);
-    }
-
-    bool satisfies(const version& v) const {
-        if (comparators_.empty()) {
-            return true;
-        }
-        for (const auto& comp : comparators_) {
-            if (!comp.satisfies(v)) {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    bool empty() const noexcept {
-        return comparators_.empty();
-    }
-
-private:
-    std::vector<comparator> comparators_;
-};
-
 // A range is composed of one or more comparator sets (OR logic)
 class range {
 public:
@@ -138,7 +106,14 @@ public:
             return true;
         }
         for (const auto& set : sets_) {
-            if (set.satisfies(v)) {
+            bool all_satisfied = true;
+            for (const auto& comp : set) {
+                if (!comp.satisfies(v)) {
+                    all_satisfied = false;
+                    break;
+                }
+            }
+            if (all_satisfied) {
                 return true;
             }
         }
@@ -150,6 +125,9 @@ public:
     }
 
 private:
+    // A comparator set is a collection of comparators (AND logic)
+    using comparator_set = std::vector<comparator>;
+
     // Trim leading and trailing whitespace
     static std::string_view trim(std::string_view str) {
         const auto first = str.find_first_not_of(" \t\n\r\f\v");
@@ -208,16 +186,16 @@ private:
             return set;
         }
 
-        for (std::size_t i = 0; i < tokens.size(); ++i) {
+        for (std::size_t i{}; i < tokens.size(); ++i) {
             // Hyphen range: [version - version]
             if (i + 2 < tokens.size() && tokens[i + 1] == "-") {
                 // Lower and upper bounds
-                set.add(comparator(comparator::op::gte, version::coerce(tokens[i])));
-                set.add(comparator(comparator::op::lte, version::coerce(tokens[i + 2])));
+                set.emplace_back(comparator::op::gte, version::coerce(tokens[i]));
+                set.emplace_back(comparator::op::lte, version::coerce(tokens[i + 2]));
                 i += 2; // Skip the hyphen and upper version
             } else {
                 // Regular comparator
-                set.add(comparator(tokens[i]));
+                set.emplace_back(tokens[i]);
             }
         }
 
