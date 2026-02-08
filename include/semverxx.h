@@ -7,7 +7,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-#include <utility>
+#include <type_traits>
 
 namespace semverxx {
 class version {
@@ -523,7 +523,6 @@ namespace literals {
 } // namespace semverxx
 
 // Implement the tuple protocol to provide structured binding support in C++17
-#if __cpp_structured_bindings >= 201606L
 namespace semverxx {
 template<std::size_t I>
 decltype(auto) get(const version& v) noexcept {
@@ -542,8 +541,6 @@ decltype(auto) get(const version& v) noexcept {
 }
 }
 
-#include <type_traits>
-
 namespace std {
 template<>
 struct tuple_size<semverxx::version> : integral_constant<size_t, 5> {
@@ -554,6 +551,5 @@ struct tuple_element<I, semverxx::version> {
     using type = decltype(get<I>(declval<semverxx::version>()));
 };
 }
-#endif
 
 #endif // SEMVERXX_H
