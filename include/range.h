@@ -131,7 +131,7 @@ private:
     // Trim leading and trailing whitespace
     static std::string_view trim(std::string_view str) {
         const auto first = str.find_first_not_of(" \t\n\r\f\v");
-        if (first == std::string::npos) {
+        if (first == std::string_view::npos) {
             return {};
         }
         const auto last = str.find_last_not_of(" \t\n\r\f\v");
@@ -140,10 +140,13 @@ private:
 
     // Split string by delimiter
     static std::vector<std::string_view> split(std::string_view str, std::string_view delimiter) {
+        if (delimiter.empty()) {
+            return {str};
+        }
         std::vector<std::string_view> tokens;
         std::size_t start{}, end{str.find(delimiter)};
 
-        while (end != std::string::npos) {
+        while (end != std::string_view::npos) {
             tokens.push_back(str.substr(start, end - start));
             start = end + delimiter.size();
             end = str.find(delimiter, start);
@@ -155,28 +158,20 @@ private:
     // Split string by whitespace, handling multiple spaces
     static std::vector<std::string_view> split_whitespace(std::string_view str) {
         std::vector<std::string_view> tokens;
-        std::size_t start{};
-        const std::size_t len{str.size()};
+        auto len = str.size();
+        auto start = str.find_first_not_of(" \t\n\r\f\v");
 
-        while (start < len) {
-            // Skip leading whitespace
-            while (start < len && std::isspace(static_cast<unsigned char>(str[start]))) {
-                ++start;
-            }
-            if (start >= len) {
+        while (start != std::string_view::npos && start < len) {
+            auto end = str.find_first_of(" \t\n\r\f\v", start);
+            if (end == std::string_view::npos) {
+                tokens.push_back(str.substr(start));
                 break;
             }
-            // Find end of token
-            std::size_t end = start;
-            while (end < len && !std::isspace(static_cast<unsigned char>(str[end]))) {
-                ++end;
-            }
             tokens.push_back(str.substr(start, end - start));
-            start = end;
+            start = str.find_first_not_of(" \t\n\r\f\v", end);
         }
         return tokens;
     }
-
 
     // Parse a comparator set (whitespace-joined comparators)
     static comparator_set parse_comparator_set(std::string_view str) {
@@ -210,7 +205,7 @@ private:
         }
 
         // Get comparator sets
-        for (const auto set_str : split(trimmed, "||")) {
+        for (const auto& set_str : split(trimmed, "||")) {
             auto trimmed_set = trim(set_str);
             if (!trimmed_set.empty()) {
                 auto set = parse_comparator_set(trimmed_set);
