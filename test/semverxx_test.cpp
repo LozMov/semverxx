@@ -120,6 +120,36 @@ TEST(Parsing, InvalidVersions) {
     EXPECT_THROW(version(".1.2.3"), std::invalid_argument); // Unexpected dot
 }
 
+TEST(Parsing, InvalidVersionsErrorCode) {
+    std::error_code ec;
+    version v("", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_major); // Missing major
+    v = version("1", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_major); // Missing minor/patch
+    v = version("1.2", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_minor); // Missing patch
+    v = version("1.2.3-", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_prerelease); // Empty prerelease
+    v = version("1.2.3-alpha.", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_prerelease); // Empty prerelease identifier
+    v = version("1.2.3+", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_build); // Empty build
+    v = version("1.2.3+1.", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_build); // Empty build identifier
+    v = version("01.2.3", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_major); // Leading zero major
+    v = version("1.02.3", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_minor); // Leading zero minor
+    v = version("1.2.03", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_patch); // Leading zero patch
+    v = version("a.b.c", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_major); // Non-numeric
+    v = version("1.2.3.4", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_patch); // Too many components
+    v = version(".1.2.3", ec);
+    EXPECT_EQ(ec, semverxx::errc::invalid_major); // Unexpected dot
+}
+
 TEST(Coercion, PartiallyValidVersions) {
     EXPECT_EQ(version::coerce(""), version("0.0.0"));
     EXPECT_EQ(version::coerce(" "), version("0.0.0"));

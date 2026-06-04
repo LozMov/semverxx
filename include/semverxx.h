@@ -3,11 +3,12 @@
 
 #include <cctype>
 #include <cstddef>
-#include <ostream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 #include <type_traits>
+
+#include "semverxx_error.h"
 
 namespace semverxx {
 class version {
@@ -25,28 +26,15 @@ public:
     }
 
     explicit version(std::string_view str) {
-        switch (parse(str)) {
-        case state::success:
-            break;
-        case state::major_begin: // []
-        case state::major_zero: // [0]
-        case state::major: // [1]
-            throw std::invalid_argument("invalid major version");
-        case state::minor_begin: // [1.]
-        case state::minor_zero: // [1.0]
-        case state::minor: // [1.1]
-            throw std::invalid_argument("invalid minor version");
-        case state::patch_begin: // [1.1.]
-        case state::patch_zero: // [1.1.0]
-        case state::patch: // [1.1.1]
-            throw std::invalid_argument("invalid patch version");
-        case state::prerelease_begin: // [1.1.1-] | [1.1.1-alpha.]
-        case state::prerelease:
-            throw std::invalid_argument("invalid pre-release version");
-        case state::build_begin: // [1.1.1+] | [1.1.1+aabbcc.]
-        case state::build: // [1.1.1+aabbcc]
-            throw std::invalid_argument("invalid build metadata");
+        const auto result = state_to_errc(parse(str));
+        if (result != errc::success) {
+            throw std::invalid_argument(version_category().message(static_cast<int>(result)));
         }
+    }
+
+    // Non-throwing constructor
+    version(std::string_view str, std::error_code& ec) noexcept {
+        ec = make_error_code(state_to_errc(parse(str)));
     }
 
     int major() const noexcept { return major_; }
@@ -83,14 +71,14 @@ public:
     }
 
     void set_prerelease(std::string_view prerelease) {
-        if (!valid_identifiers(prerelease)) {
+        if (!is_valid_identifiers(prerelease)) {
             throw std::invalid_argument("invalid pre-release version");
         }
         prerelease_ = prerelease;
     }
 
     void set_build(std::string_view build) {
-        if (!valid_identifiers(build)) {
+        if (!is_valid_identifiers(build)) {
             throw std::invalid_argument("invalid build metadata");
         }
         build_ = build;
@@ -181,6 +169,31 @@ public:
         version ver;
         ver.parse(str.substr(first_index, last_index + 1));
         return ver;
+    }
+
+    static bool is_valid_component(int component) noexcept { return component >= 0; }
+
+    static bool is_valid_identifiers(std::string_view str) noexcept {
+        if (str.empty()) {
+            return true;
+        }
+        if (str.front() == '.' || str.back() == '.') {
+            return false;
+        }
+        bool prev_dot{};
+        for (const auto c : str) {
+            if (c == '.') {
+                if (prev_dot) {
+                    return false; // Empty identifier
+                }
+                prev_dot = true;
+            } else if (!std::isalnum(c) && c != '-') {
+                return false; // Invalid character
+            } else {
+                prev_dot = false;
+            }
+        }
+        return true;
     }
 
 private:
@@ -365,27 +378,31 @@ private:
         }
     }
 
-    static bool valid_identifiers(std::string_view str) {
-        if (str.empty()) {
-            return true;
+    // Map an FSM halt state to the error code describing the failure
+    static errc state_to_errc(state s) noexcept {
+        switch (s) {
+        case state::success:
+            return errc::success;
+        case state::major_begin:
+        case state::major_zero:
+        case state::major:
+            return errc::invalid_major;
+        case state::minor_begin:
+        case state::minor_zero:
+        case state::minor:
+            return errc::invalid_minor;
+        case state::patch_begin:
+        case state::patch_zero:
+        case state::patch:
+            return errc::invalid_patch;
+        case state::prerelease_begin:
+        case state::prerelease:
+            return errc::invalid_prerelease;
+        case state::build_begin:
+        case state::build:
+            return errc::invalid_build;
         }
-        if (str.front() == '.' || str.back() == '.') {
-            return false;
-        }
-        bool prev_dot{};
-        for (const auto c : str) {
-            if (c == '.') {
-                if (prev_dot) {
-                    return false; // Empty identifier
-                }
-                prev_dot = true;
-            } else if (!std::isalnum(c) && c != '-') {
-                return false; // Invalid character
-            } else {
-                prev_dot = false;
-            }
-        }
-        return true;
+        return errc::success; // Unreachable; all states are handled above
     }
 
     static std::size_t integral_length(int n) noexcept {
